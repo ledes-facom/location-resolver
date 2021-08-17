@@ -44,7 +44,7 @@ async function readCSV(file) {
 async function resolveLocation(location, apiKey) {
   return axios
     .get("https://geocode.search.hereapi.com/v1/geocode", {
-      params: { q: location, apiKey, lang: "en-US" },
+      params: { q: encodeURIComponent(location), apiKey, lang: "en-US" },
     })
     .then((response) => get(response, "data.items[0].address", undefined));
 }
@@ -116,11 +116,13 @@ program
             : resolveLocation(location, apiKey);
 
           // Ao resolver a Promise, escreve o dado csv e adiciona nova localização no cache
-          return locationPromise.then(async (response) => {
-            csvStream.write({ location, ...response });
-            if (cachedLocation) return;
-            await keyv.set(location, response);
-          });
+          return locationPromise
+            .catch(() => null)
+            .then(async (response) => {
+              csvStream.write({ location, ...response });
+              if (cachedLocation) return;
+              await keyv.set(location, response);
+            });
         })
           .then(() => csvStream.end())
           .then(() => consola.debug("Done."));
