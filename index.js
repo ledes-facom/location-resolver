@@ -44,7 +44,7 @@ async function readCSV(file) {
 async function resolveLocation(location, apiKey) {
   return axios
     .get("https://geocode.search.hereapi.com/v1/geocode", {
-      params: { q: encodeURIComponent(location), apiKey, lang: "en-US" },
+      params: { q: location, apiKey, lang: "en-US" },
     })
     .then((response) => get(response, "data.items[0].address", undefined));
 }
