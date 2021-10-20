@@ -120,3 +120,4 @@ dist
 
 # APP
 .cache.json
+.cache.sqlite

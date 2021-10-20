@@ -3,21 +3,20 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { get } = require("lodash");
+const { get, shuffle, isNil } = require("lodash");
 const axios = require("axios");
 const csv = require("fast-csv");
 const consola = require("consola");
 const Promise = require("bluebird");
 const { program } = require("commander");
 const Keyv = require("keyv");
-const { KeyvFile } = require("keyv-file");
 
 /**
  * Função responsável pela leitura do arquivo CSV.
  * É necessário que tenha duas colunas: 'count' e 'location'
  *
  * @param {String} file Caminho do arquivo .csv
- * @returns {Promise<String} Uma lista de strings com os locais
+ * @returns {Promise<[{ count: number; location: string }]>} Uma lista de strings com os locais
  *
  */
 async function readCSV(file) {
@@ -53,6 +52,7 @@ program
   .argument("<input_file>", "File containing the locations (.csv)")
   .option("-o, --output [string]", "Output file to save results")
   .option("--api-key [string]", "HereAPI key to make the requests")
+  .option("--shuffle", "Shuffle location entries before execution", false)
   .addHelpText(
     "after",
     "\nYou need to provide the HereAPI through HEREAPI_KEY environment variable or --api-key option"
@@ -69,16 +69,13 @@ program
     consola.debug(`Reading csv file (${inputFile}) ...`);
     readCSV(path.resolve(__dirname, inputFile))
       .then((locations) => locations.map((l) => l.location.trim())) // Faz a limpeza da localicações (e.g., remove espaços dos cantos)
+      .then((locations) => (options.shuffle) ? shuffle(locations) : locations)
       .then(async (locations) => {
         consola.debug(`Preparing to resolve ${locations.length} locales ...`);
 
         // Cria um cache local para evitar refazer chamadas à HereAPI
         consola.debug("Creating locales caching ...");
-        const keyv = new Keyv({
-          store: new KeyvFile({
-            filename: path.resolve(__dirname, ".cache.json"),
-          }),
-        });
+        const keyv = new Keyv("sqlite://.cache.sqlite");
 
         // Cria o csv stream
         const csvStream = csv.format({
@@ -110,18 +107,22 @@ program
           // Recupera a localização do cache
           const cachedLocation = await keyv.get(location);
 
+
           // Se não tiver, busca na HereAPI
-          const locationPromise = cachedLocation
-            ? Promise.resolve(cachedLocation)
-            : resolveLocation(location, apiKey);
+          const locationPromise = isNil(cachedLocation)
+            ? resolveLocation(location, apiKey)
+            : Promise.resolve(cachedLocation);
 
           // Ao resolver a Promise, escreve o dado csv e adiciona nova localização no cache
           return locationPromise
-            .catch(() => null)
+            .catch((error) => {
+              if (error.response.status === 400) return null;
+              throw error;
+            })
             .then(async (response) => {
               csvStream.write({ location, ...response });
               if (cachedLocation) return;
-              await keyv.set(location, response);
+              await keyv.set(location, response || '');
             });
         })
           .then(() => csvStream.end())
