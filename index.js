@@ -10,6 +10,7 @@ const consola = require("consola");
 const Promise = require("bluebird");
 const { program } = require("commander");
 const Keyv = require("keyv");
+const cliProgress = require("cli-progress");
 
 /**
  * Função responsável pela leitura do arquivo CSV.
@@ -69,7 +70,7 @@ program
     consola.debug(`Reading csv file (${inputFile}) ...`);
     readCSV(path.resolve(__dirname, inputFile))
       .then((locations) => locations.map((l) => l.location.trim())) // Faz a limpeza da localicações (e.g., remove espaços dos cantos)
-      .then((locations) => (options.shuffle) ? shuffle(locations) : locations)
+      .then((locations) => (options.shuffle ? shuffle(locations) : locations))
       .then(async (locations) => {
         consola.debug(`Preparing to resolve ${locations.length} locales ...`);
 
@@ -89,6 +90,7 @@ program
             "county",
             "city",
           ],
+          quoteColumns: true,
         });
 
         consola.debug(
@@ -102,11 +104,20 @@ program
           )
           .on("end", () => process.exit());
 
+        const bar = new cliProgress.SingleBar(
+          {
+            format:
+              'Progress [{bar}] {percentage}% | ETA: {eta_formatted} | {value}/{total} | "{location}"',
+          },
+          cliProgress.Presets.shades_classic
+        );
+
+        bar.start(locations.length, 0);
+
         // Itera sobre cada localização esperando cada Promise ser resolvida
         return Promise.each(locations, async (location) => {
           // Recupera a localização do cache
           const cachedLocation = await keyv.get(location);
-
 
           // Se não tiver, busca na HereAPI
           const locationPromise = isNil(cachedLocation)
@@ -122,11 +133,13 @@ program
             .then(async (response) => {
               csvStream.write({ location, ...response });
               if (cachedLocation) return;
-              await keyv.set(location, response || '');
-            });
+              await keyv.set(location, response || "");
+            })
+            .finally(() => bar.increment({ location }));
         })
           .then(() => csvStream.end())
-          .then(() => consola.debug("Done."));
+          .then(() => consola.debug("Done."))
+          .finally(() => bar.stop());
       });
   })
   .parse(process.argv);
