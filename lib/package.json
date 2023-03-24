@@ -1,11 +1,20 @@
 {
-    "name": "@hsborges/location-study",
+    "name": "@ledes-facom/location-resolver",
     "version": "0.0.1",
     "main": "./lib/cli.js",
     "bin": {
         "location-resolver": "./lib/cli.js"
     },
     "license": "MIT",
+    "repository": {
+        "url": "https://github.com/ledes-facom/location-resolver.git"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
+    "author": {
+        "name": "Hudson Silva Borges"
+    },
     "dependencies": {
         "@keyv/sqlite": "^3.6.5",
         "axios": "^1.3.4",
@@ -26,7 +35,9 @@
         "start": "node ./lib/cli.js",
         "test": "yarn jest ./src",
         "local": "npm i -g && location-resolver",
-        "prepare": "is-ci || husky install || echo 'husky install skipped'"
+        "prepare": "is-ci || husky install || echo 'husky install skipped'",
+        "release": "np --message 'chore: v%s'",
+        "np": "npm rum release"
     },
     "devDependencies": {
         "@commitlint/cli": "^17.5.0",
