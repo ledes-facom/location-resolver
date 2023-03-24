@@ -1,6 +1,6 @@
 {
     "name": "@hsborges/location-study",
-    "version": "0.1.0",
+    "version": "0.0.1",
     "main": "./lib/cli.js",
     "bin": {
         "location-resolver": "./lib/cli.js"
