@@ -10,6 +10,8 @@ import cliProgress from 'cli-progress';
 import { each } from 'bluebird';
 import { readCSV, HereApiResponse, resolveLocation, readTXT } from './helpers';
 
+import { version } from './package.json';
+
 program
   .addArgument(new Argument('<input_file>', 'File containing the locations (.csv or .txt)'))
   .addOption(new Option('-o, --output [string]', 'Output file to save results'))
@@ -19,6 +21,7 @@ program
       .makeOptionMandatory()
   )
   .addOption(new Option('--shuffle', 'Shuffle location entries before execution'))
+  .version(version)
   .action(async (inputFile: string) => {
     // Obtem as opções passadas pela linha de comando
     const options = program.opts<{ apiKey: string; shuffle: boolean; output?: string }>();
