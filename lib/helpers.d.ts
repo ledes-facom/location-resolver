@@ -13,5 +13,4 @@ export type HereApiResponse = {
 };
 export declare function readCSV(file: string): Promise<LocationData>;
 export declare function readTXT(file: string): Promise<LocationData>;
-export declare function resolveLocation(location: string, apiKey: string): Promise<HereApiResponse | null>;
 export {};

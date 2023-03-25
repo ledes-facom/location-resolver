@@ -5,12 +5,12 @@ import { shuffle } from 'lodash';
 import * as csv from 'fast-csv';
 import consola from 'consola';
 import { Argument, Option, program } from 'commander';
-import Keyv from 'keyv';
 import cliProgress from 'cli-progress';
 import { each } from 'bluebird';
-import { readCSV, HereApiResponse, resolveLocation, readTXT } from './helpers';
+import { readCSV, readTXT } from './helpers';
 
 import { version } from './package.json';
+import LocationResolver from './resolver';
 
 program
   .addArgument(new Argument('<input_file>', 'File containing the locations (.csv or .txt)'))
@@ -36,9 +36,8 @@ program
       .then(async (locations) => {
         consola.debug(`Preparing to resolve ${locations.length} locales ...`);
 
-        // Cria um cache local para evitar refazer chamadas à HereAPI
-        consola.debug('Creating locales caching ...');
-        const keyv = new Keyv<HereApiResponse | null>('sqlite://.cache.sqlite');
+        consola.debug('Preparing locales resolver ...');
+        const resolver = new LocationResolver(options.apiKey, version);
 
         // Cria o csv stream
         const csvStream = csv.format({
@@ -78,26 +77,11 @@ program
         return each(locations, async (location) => {
           consola.debug(`Resolving location "${location}" ...`);
 
-          // Recupera a localização do cache
-          const cachedLocation = await keyv.get(location);
-
-          // Se não tiver, busca na HereAPI
-          const locationPromise =
-            cachedLocation === undefined
-              ? resolveLocation(location, options.apiKey)
-              : Promise.resolve(cachedLocation);
-
-          // Ao resolver a Promise, escreve o dado csv e adiciona nova localização no cache
-          return locationPromise
-            .catch((error) => {
-              if (error.response.status === 400) return null;
-              throw error;
-            })
-            .then(async (response) => {
-              csvStream.write({ location, ...response });
-              if (!cachedLocation) await keyv.set(location, response);
-            })
-            .catch(consola.error)
+          // Recupera a localização no serviço
+          return resolver
+            .get(location)
+            .catch((error) => (error?.response?.status === 400 ? null : Promise.reject(error)))
+            .then((response) => csvStream.write({ location, ...response }))
             .finally(() => bar.increment({ location }));
         })
           .then(() => new Promise((resolve) => csvStream.end(resolve)))
