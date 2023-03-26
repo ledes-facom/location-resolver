@@ -1,3 +1,2 @@
-export * from './helpers/helpers';
+export * from './core';
 export * from './types';
-export * from './core/LocationResolver';

@@ -1,4 +1,4 @@
-import { readLines, readTXT } from './helpers';
+import { readLines, readTXT } from './files';
 import { writeFileSync } from 'fs';
 import { withFile } from 'tmp-promise';
 

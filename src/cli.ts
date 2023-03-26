@@ -7,11 +7,10 @@ import consola from 'consola';
 import { Argument, Option, program } from 'commander';
 import cliProgress from 'cli-progress';
 import { map } from 'bluebird';
-import { readCSV, readLines, readTXT } from './helpers/helpers';
-import { P2cBalancer } from 'load-balancers';
+import { readCSV, readLines, readTXT } from './helpers/files';
 
 import { version } from './package.json';
-import LocationResolver from './core/LocationResolver';
+import LocationService from './core/LocationService';
 
 program
   .addArgument(new Argument('<input_file>', 'File containing the locations (.csv or .txt)'))
@@ -41,7 +40,6 @@ program
       program.error('You must provide a HereAPI key (--key) or a keys file (--keys).');
 
     const keys = options.keys ? await readLines(options.keys) : options.key ? [options.key] : [];
-    const balancer = new P2cBalancer(keys.length);
 
     // Faz a leitura do arquivo csv com os dados
     consola.debug(`Reading csv file (${inputFile}) ...`);
@@ -54,7 +52,7 @@ program
         consola.debug(`Preparing to resolve ${locations.length} locales ...`);
 
         consola.debug('Preparing locales resolver ...');
-        const resolvers = keys.map((key) => new LocationResolver(key));
+        const service = new LocationService(keys);
 
         // Cria o csv stream
         const csvStream = csv.format({
@@ -95,8 +93,8 @@ program
           consola.debug(`Resolving location "${location}" ...`);
 
           // Recupera a localização no serviço
-          return resolvers[balancer.pick()]
-            .get(location)
+          return service
+            .resolve(location)
             .catch((error) => (error?.response?.status === 400 ? null : Promise.reject(error)))
             .then((response) => csvStream.write({ location, ...response }))
             .finally(() => bar.increment({ location }));
