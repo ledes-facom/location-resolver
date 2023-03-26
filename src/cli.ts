@@ -6,25 +6,42 @@ import * as csv from 'fast-csv';
 import consola from 'consola';
 import { Argument, Option, program } from 'commander';
 import cliProgress from 'cli-progress';
-import { each } from 'bluebird';
-import { readCSV, readTXT } from './helpers';
+import { map } from 'bluebird';
+import { readCSV, readLines, readTXT } from './helpers/helpers';
+import { P2cBalancer } from 'load-balancers';
 
 import { version } from './package.json';
-import LocationResolver from './resolver';
+import LocationResolver from './core/LocationResolver';
 
 program
   .addArgument(new Argument('<input_file>', 'File containing the locations (.csv or .txt)'))
   .addOption(new Option('-o, --output [string]', 'Output file to save results'))
   .addOption(
-    new Option('--api-key [string]', 'HereAPI key to make the requests')
+    new Option('--key [string]', 'HereAPI key to make the requests')
       .env('HEREAPI_KEY')
-      .makeOptionMandatory()
+      .conflicts('keys')
+  )
+  .addOption(
+    new Option('--keys [string]', 'File containing the HereAPI keys to make the requests')
+      .env('HEREAPI_KEYS')
+      .conflicts('key')
   )
   .addOption(new Option('--shuffle', 'Shuffle location entries before execution'))
   .version(version)
   .action(async (inputFile: string) => {
     // Obtem as opções passadas pela linha de comando
-    const options = program.opts<{ apiKey: string; shuffle: boolean; output?: string }>();
+    const options = program.opts<
+      { key?: string; keys?: string; shuffle: boolean; output?: string } & (
+        | { key: string }
+        | { keys: string }
+      )
+    >();
+
+    if (!options.key && !options.keys)
+      program.error('You must provide a HereAPI key (--key) or a keys file (--keys).');
+
+    const keys = options.keys ? await readLines(options.keys) : options.key ? [options.key] : [];
+    const balancer = new P2cBalancer(keys.length);
 
     // Faz a leitura do arquivo csv com os dados
     consola.debug(`Reading csv file (${inputFile}) ...`);
@@ -37,7 +54,7 @@ program
         consola.debug(`Preparing to resolve ${locations.length} locales ...`);
 
         consola.debug('Preparing locales resolver ...');
-        const resolver = new LocationResolver(options.apiKey, version);
+        const resolvers = keys.map((key) => new LocationResolver(key));
 
         // Cria o csv stream
         const csvStream = csv.format({
@@ -74,21 +91,21 @@ program
         if (options.output && !process.env.DEBUG) bar.start(locations.length, 0);
 
         // Itera sobre cada localização esperando cada Promise ser resolvida
-        return each(locations, async (location) => {
+        return map(locations, async (location) => {
           consola.debug(`Resolving location "${location}" ...`);
 
           // Recupera a localização no serviço
-          return resolver
+          return resolvers[balancer.pick()]
             .get(location)
             .catch((error) => (error?.response?.status === 400 ? null : Promise.reject(error)))
             .then((response) => csvStream.write({ location, ...response }))
             .finally(() => bar.increment({ location }));
         })
-          .then(() => new Promise((resolve) => csvStream.end(resolve)))
+          .then(() => csvStream.end())
           .then(() => process.stdout.write('\n'))
           .then(() => consola.debug('Done.'))
           .finally(() => bar.stop())
           .catch(consola.error);
       });
   })
-  .parse(process.argv);
+  .parseAsync(process.argv);
