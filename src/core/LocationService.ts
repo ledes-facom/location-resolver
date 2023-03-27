@@ -15,7 +15,9 @@ export default class LocationService {
   constructor(apiKey: string | string[]) {
     this.keys = Array.isArray(apiKey) ? apiKey : [apiKey];
     this.balancer = new P2cBalancer(this.keys.length);
-    this.queues = this.keys.map(() => new PQueue({ concurrency: 1 }));
+    this.queues = this.keys.map(
+      () => new PQueue({ concurrency: 1, interval: 1000, intervalCap: 1 })
+    );
   }
 
   public async resolve(location: string): Promise<HereApiResponse | null> {
