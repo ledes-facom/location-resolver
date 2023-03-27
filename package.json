@@ -18,7 +18,7 @@
     "name": "Hudson Silva Borges"
   },
   "scripts": {
-    "build": "npm run lint && shx rm -rf lib && tsc",
+    "build": "npm run lint && shx rm -rf lib && tsc && shx chmod -R +x ./lib",
     "dev": "ts-node -T ./src/cli.ts",
     "dev:server": "ts-node -T ./src/server.ts",
     "cli": "node ./lib/cli.js",
