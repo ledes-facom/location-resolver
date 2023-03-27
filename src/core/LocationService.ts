@@ -21,18 +21,19 @@ export default class LocationService {
   }
 
   public async resolve(location: string): Promise<HereApiResponse | null> {
-    const index = this.balancer.pick();
-    return this.queues[index].add(() =>
-      this.cache
-        .get(location)
-        .then((cachedLocation) =>
-          cachedLocation === undefined
-            ? // eslint-disable-next-line prefer-promise-reject-errors
-              Promise.reject({ notFound: true })
-            : Promise.resolve(cachedLocation)
-        )
-        .catch(async (error) => {
-          if (error.notFound) {
+    return this.cache
+      .get(location)
+      .then((cachedLocation) =>
+        cachedLocation === undefined
+          ? // eslint-disable-next-line prefer-promise-reject-errors
+            Promise.reject({ notFound: true })
+          : Promise.resolve(cachedLocation)
+      )
+      .catch(async (error) => {
+        if (error.notFound) {
+          const index = this.balancer.pick();
+
+          return this.queues[index].add(async () => {
             const locationData: HereApiResponse = await axios
               .get('https://geocode.search.hereapi.com/v1/geocode', {
                 params: { q: location, apiKey: this.keys[index], lang: 'en-US' },
@@ -42,10 +43,10 @@ export default class LocationService {
             await this.cache.set(location, locationData);
 
             return locationData;
-          }
+          });
+        }
 
-          throw error;
-        })
-    );
+        throw error;
+      });
   }
 }
