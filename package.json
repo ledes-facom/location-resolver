@@ -4,8 +4,7 @@
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "bin": {
-    "location-resolver": "./lib/cli.js",
-    "location-resolver-server": "./lib/server.js"
+    "location-resolver": "./lib/cli.js"
   },
   "license": "MIT",
   "repository": {
@@ -20,11 +19,9 @@
   "scripts": {
     "build": "npm run lint && shx rm -rf lib && tsc && shx chmod -R +x ./lib",
     "dev": "ts-node -T ./src/cli.ts",
-    "dev:server": "ts-node -T ./src/server.ts",
     "cli": "node ./lib/cli.js",
     "test": "jest ./src --coverage --collectCoverageFrom='src/**/*.ts'",
     "local": "npm i -g && location-resolver",
-    "local:server": "npm i -g && location-resolver-server",
     "prepare": "is-ci || husky install || echo 'husky install skipped'",
     "release": "np --message 'chore: v%s' --no-publish",
     "np": "npm rum release",

@@ -11,35 +11,53 @@ import { readCSV, readLines, readTXT } from './helpers/files';
 
 import { version } from './package.json';
 import LocationService from './core/LocationService';
+import { app } from './server';
 
 program
-  .addArgument(new Argument('<input_file>', 'File containing the locations (.csv or .txt)'))
+  .addArgument(new Argument('[input_file]', 'File containing the locations (.csv or .txt)'))
+  .addOption(new Option('-s, --server', 'Starts the server mode'))
+  .addOption(new Option('--port [number]', 'Port to start the server').env('PORT').default(3000))
   .addOption(new Option('-o, --output [string]', 'Output file to save results'))
   .addOption(
     new Option('--key [string]', 'HereAPI key to make the requests')
       .env('HEREAPI_KEY')
-      .conflicts('keys')
+      .conflicts('keys'),
   )
   .addOption(
     new Option('--keys [string]', 'File containing the HereAPI keys to make the requests')
       .env('HEREAPI_KEYS')
-      .conflicts('key')
+      .conflicts('key'),
   )
   .addOption(new Option('--shuffle', 'Shuffle location entries before execution'))
   .version(version)
   .action(async (inputFile: string) => {
     // Obtem as opções passadas pela linha de comando
     const options = program.opts<
-      { key?: string; keys?: string; shuffle: boolean; output?: string } & (
-        | { key: string }
-        | { keys: string }
-      )
+      { key?: string; keys?: string } & (
+        | { server: true; port: number }
+        | { server: false; shuffle: boolean; output?: string }
+      ) &
+        ({ key: string } | { keys: string })
     >();
 
     if (!options.key && !options.keys)
       program.error('You must provide a HereAPI key (--key) or a keys file (--keys).');
 
-    const keys = options.keys ? await readLines(options.keys) : options.key ? [options.key] : [];
+    consola.debug('Preparing locales resolver ...');
+    const service = new LocationService(
+      options.keys ? await readLines(options.keys) : options.key ? [options.key] : [],
+    );
+
+    if (options.server) {
+      consola.debug('Starting server ...');
+      const server = app(service).listen(options.port, () =>
+        consola.info(`Server started at port :${options.port}`),
+      );
+
+      return new Promise<void>((resolve, reject) => {
+        server.on('close', (err: unknown) => (err ? reject(err) : resolve()));
+      });
+    }
 
     // Faz a leitura do arquivo csv com os dados
     consola.debug(`Reading csv file (${inputFile}) ...`);
@@ -50,9 +68,6 @@ program
       .then((locations) => (options.shuffle ? shuffle(locations) : locations))
       .then(async (locations) => {
         consola.debug(`Preparing to resolve ${locations.length} locales ...`);
-
-        consola.debug('Preparing locales resolver ...');
-        const service = new LocationService(keys);
 
         // Cria o csv stream
         const csvStream = csv.format({
@@ -74,7 +89,7 @@ program
           .pipe(
             options.output
               ? fs.createWriteStream(path.resolve(__dirname, options.output))
-              : process.stdout
+              : process.stdout,
           )
           .on('end', () => process.exit());
 
@@ -83,7 +98,7 @@ program
             format:
               'Progress [{bar}] {percentage}% | ETA: {eta_formatted} | {value}/{total} | "{location}"',
           },
-          cliProgress.Presets.shades_classic
+          cliProgress.Presets.shades_classic,
         );
 
         if (options.output && !process.env.DEBUG) bar.start(locations.length, 0);
