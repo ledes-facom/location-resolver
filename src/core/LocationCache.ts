@@ -13,7 +13,7 @@ export default class LocationCache {
     const dir = path.resolve(homedir(), '.location-resolver');
     mkdirSync(dir, { recursive: true });
     this.keyv = new Keyv<HereApiResponse | null>(
-      `sqlite://${path.resolve(dir, `${version}-db.sqlite`)}`
+      `sqlite://${path.resolve(dir, `${version}-db.sqlite`)}`,
     );
   }
 
