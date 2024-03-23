@@ -18,7 +18,7 @@ export default class LocationCache {
   }
 
   static getInstance() {
-    if (!this.instance) this.instance = new this();
+    this.instance ||= new this();
     return this.instance;
   }
 
