@@ -23,9 +23,9 @@ describe('helpers', () => {
       );
 
       await expect(readCSV(path)).resolves.toEqual([
-        { count: 0, location: 'São Paulo' },
-        { count: 1, location: 'Rio de Janeiro' },
-        { count: 2, location: 'Belo Horizonte' },
+        { count: '0', location: 'São Paulo' },
+        { count: '1', location: 'Rio de Janeiro' },
+        { count: '2', location: 'Belo Horizonte' },
       ]);
     });
   });

@@ -16,7 +16,11 @@ export async function readCSV(file: string): Promise<LocationData> {
     fs.createReadStream(file)
       .pipe(csv.parse({ headers: true }))
       .on('error', (error) => reject(error))
-      .on('data', (row) => result.push({ count: parseInt(row.count, 10), location: row.location }))
+      .on('data', ({ location, ...keys }) =>
+        result.push(
+          Object.keys(keys).reduce((acc, key) => ({ ...acc, [key]: keys[key] }), { location }),
+        ),
+      )
       .on('end', () => resolve(result));
   });
 }
@@ -34,8 +38,8 @@ export async function readLines(file: string): Promise<string[]> {
           ...data
             .toString()
             .split(/[\n\r]/g)
-            .map((l) => l.trim())
-        )
+            .map((l) => l.trim()),
+        ),
       )
       .on('error', (error) => reject(error))
       .on('end', () => resolve(result));
@@ -56,8 +60,8 @@ export async function readTXT(file: string): Promise<LocationData> {
           ...data
             .toString()
             .split('\n')
-            .map((l) => ({ location: l.trim() }))
-        )
+            .map((l) => ({ location: l.trim() })),
+        ),
       )
       .on('error', (error) => reject(error))
       .on('end', () => resolve(result));
