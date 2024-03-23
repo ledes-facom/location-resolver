@@ -26,7 +26,7 @@
     "local": "npm i -g && location-resolver",
     "local:server": "npm i -g && location-resolver-server",
     "prepare": "is-ci || husky install || echo 'husky install skipped'",
-    "release": "np --message 'chore: v%s'",
+    "release": "np --message 'chore: v%s' --no-publish",
     "np": "npm rum release",
     "lint": "eslint ./src --ext .ts"
   },
