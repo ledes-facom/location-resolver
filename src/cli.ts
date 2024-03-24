@@ -54,6 +54,8 @@ program
         consola.info(`Server started at port :${options.port}`),
       );
 
+      process.on('SIGINT', () => server.close());
+
       return new Promise<void>((resolve, reject) => {
         server.on('close', (err: unknown) => (err ? reject(err) : resolve()));
       });
